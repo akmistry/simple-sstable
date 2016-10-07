@@ -13,7 +13,7 @@ import (
         pb "github.com/akmistry/simple-sstable/proto"
 )
 
-type ReadCloserAt interface {
+type ReadAtCloser interface {
 	io.ReaderAt
 	io.Closer
 }
@@ -25,7 +25,7 @@ func (e *indexEntry) Less(than btree.Item) bool {
 }
 
 type Table struct {
-	r ReadCloserAt
+	r ReadAtCloser
 
 	dataOffset uint64
 	index *btree.BTree
@@ -33,7 +33,7 @@ type Table struct {
 
 var ErrNotFound = errors.New("Not found")
 
-func Load(r ReadCloserAt) (*Table, error) {
+func Load(r ReadAtCloser) (*Table, error) {
 	reader := &Table{r: r, index: btree.New(2)}
 	err := reader.readIndex()
 	if err != nil {
@@ -105,8 +105,10 @@ func (t *Table) Has(key []byte) bool {
 
 func (t *Table) getEntry(key []byte) *indexEntry {
 	keyItem := indexEntry{Key: key}
-	item := t.index.Get(&keyItem)
-	return item.(*indexEntry)
+	if ie, ok := t.index.Get(&keyItem).(*indexEntry); ok {
+		return ie
+	}
+	return nil
 }
 
 func (t *Table) Get(key []byte) (value []byte, extra []byte, e error) {
@@ -134,7 +136,7 @@ func (t *Table) GetPartial(key []byte, off uint, p []byte) error {
 		return io.ErrUnexpectedEOF
 	}
 	if ie.Length == 0 || len(p) == 0 {
-		// The user shouldn't do this, but guard against this case anyway.
+		// The user really shouldn't be doing this.
 		return nil
 	}
 	_, err := t.r.ReadAt(p, int64(t.dataOffset + ie.Offset + uint64(off)))
@@ -142,7 +144,7 @@ func (t *Table) GetPartial(key []byte, off uint, p []byte) error {
 }
 
 // Gets the key (and extra and value length) in the table that is less than or
-// equal to the given key.  Will return nil if no such key exists.
+// equal to the given key. Will return nil if no such key exists.
 func (t *Table) LowerKey(key []byte) (k []byte, e []byte, n uint) {
 	keyItem := indexEntry{Key: key}
 	var ie *indexEntry

@@ -2,7 +2,6 @@ package sstable
 
 import (
 	"bytes"
-	"compress/zlib"
 	"encoding/binary"
 	"io"
 	"log"
@@ -40,7 +39,9 @@ func (b *Builder) Add(key []byte, valueLength uint32, meta []byte) {
 		b.started = true
 	} else if bytes.Compare(b.prev, key) != -1 {
 		log.Panicf("Key %d is before previous %d", key, b.prev)
-	} else if len(key) > 256 {
+	}
+
+	if len(key) > 256 {
 		log.Panicf("Key length %d > 256", len(key))
 	}
 
@@ -76,15 +77,6 @@ func (b *Builder) Build() error {
 	if err != nil {
 		return err
 	}
-	log.Println("Header size", len(headerBuf))
-	log.Println("Index size", header.IndexLength)
-
-	var cb bytes.Buffer
-	cr := zlib.NewWriter(&cb)
-	_, err = cr.Write(b.indexBuf.Bytes())
-	cr.Close()
-	log.Println("Zlib compressed index size", cb.Len())
-	//b.indexBuf = proto.Buffer{}
 
 	for _, pair := range b.keys {
 		if pair.length == 0 {
