@@ -1,0 +1,37 @@
+syntax = "proto3";
+package proto;
+
+// Table file format:
+// 4 bytes                  - header_size (little endian)
+// header_size bytes        - TableHeader binary encoding
+// TableHeader.index_length - List of IndexEntry's, with varint length prefix
+// remaining                - Value data, packed (no alignment)
+
+message TableHeader {
+  // Verison number. MUST be 1.
+  uint32 version = 1;
+
+  enum Compression {
+    NONE = 0;
+    ZLIB = 1;
+  }
+  // Compression used for the index.
+  Compression index_compression = 2;
+
+  // Length of the index data.
+  uint32 index_length = 3;
+}
+
+message IndexEntry {
+  // Key. Arbitrary array of up to 256 bytes.
+  bytes key = 1;
+
+  // Offset of value, relative to the start of the value section.
+  uint64 offset = 2;
+
+  // Length of value.
+  uint32 length = 3;
+
+  // Extra data associated with this entry.
+  bytes extra = 4;
+}
