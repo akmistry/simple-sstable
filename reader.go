@@ -10,7 +10,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/btree"
 
-        pb "github.com/akmistry/simple-sstable/proto"
+	pb "github.com/akmistry/simple-sstable/proto"
 )
 
 type ReadAtCloser interface {
@@ -28,7 +28,7 @@ type Table struct {
 	r ReadAtCloser
 
 	dataOffset uint64
-	index *btree.BTree
+	index      *btree.BTree
 }
 
 var ErrNotFound = errors.New("Not found")
@@ -120,7 +120,7 @@ func (t *Table) Get(key []byte) (value []byte, extra []byte, e error) {
 		return nil, ie.Extra, nil
 	}
 	value = make([]byte, int(ie.Length))
-	_, err := t.r.ReadAt(value, int64(t.dataOffset + ie.Offset))
+	_, err := t.r.ReadAt(value, int64(t.dataOffset+ie.Offset))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,14 +132,14 @@ func (t *Table) GetPartial(key []byte, off uint, p []byte) error {
 	if ie == nil {
 		return ErrNotFound
 	}
-	if uint32(off + uint(len(p))) > ie.Length {
+	if uint32(off+uint(len(p))) > ie.Length {
 		return io.ErrUnexpectedEOF
 	}
 	if ie.Length == 0 || len(p) == 0 {
 		// The user really shouldn't be doing this.
 		return nil
 	}
-	_, err := t.r.ReadAt(p, int64(t.dataOffset + ie.Offset + uint64(off)))
+	_, err := t.r.ReadAt(p, int64(t.dataOffset+ie.Offset+uint64(off)))
 	return err
 }
 

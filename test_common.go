@@ -8,51 +8,51 @@ import (
 )
 
 type testValuePair struct {
-	val string
+	val   string
 	extra []byte
 }
 
 var testValues = map[string]testValuePair{
-        "foo": { "bar1", nil },
-        "foo1": { "bar2", nil },
-        "foo2": { "bar3", nil },
-        "foo3": { "", nil },
-        "goo": { "bar4", nil },
-        "goo1": { "bar5", nil },
-	"hoo": { "randomstuff", []byte{1, 2, 3, 4, 5} },
+	"foo":  {"bar1", nil},
+	"foo1": {"bar2", nil},
+	"foo2": {"bar3", nil},
+	"foo3": {"", nil},
+	"goo":  {"bar4", nil},
+	"goo1": {"bar5", nil},
+	"hoo":  {"randomstuff", []byte{1, 2, 3, 4, 5}},
 	// 256 characters.
-	"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh" : { "bar6", nil },
+	"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh": {"bar6", nil},
 }
 
 var testValuesKeyTooLong = map[string]testValuePair{
 	// 257 characters.
-	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" : { "bar1", nil },
+	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {"bar1", nil},
 }
 
 func buildTable(t *testing.T, entries map[string]testValuePair) []byte {
-        w := new(bytes.Buffer)
+	w := new(bytes.Buffer)
 
-        vf := func(key []byte, p []byte) error {
-                val := entries[string(key)].val
-                copy(p, val)
-                return nil
-        }
-        b := NewBuilder(w, vf)
+	vf := func(key []byte, p []byte) error {
+		val := entries[string(key)].val
+		copy(p, val)
+		return nil
+	}
+	b := NewBuilder(w, vf)
 
-        var sortedKeys []string
-        for k, _ := range entries {
-                sortedKeys = append(sortedKeys, string(k))
-        }
-        sort.Strings(sortedKeys)
+	var sortedKeys []string
+	for k, _ := range entries {
+		sortedKeys = append(sortedKeys, string(k))
+	}
+	sort.Strings(sortedKeys)
 
-        for _, k := range sortedKeys {
-                b.Add([]byte(k), uint32(len(entries[k].val)), entries[k].extra)
-        }
+	for _, k := range sortedKeys {
+		b.Add([]byte(k), uint32(len(entries[k].val)), entries[k].extra)
+	}
 
-        err := b.Build()
-        if err != nil {
-                t.Error(err)
-        }
+	err := b.Build()
+	if err != nil {
+		t.Error(err)
+	}
 
 	return w.Bytes()
 }

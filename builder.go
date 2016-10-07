@@ -12,20 +12,20 @@ import (
 )
 
 type keyLengthPair struct {
-	key []byte
+	key    []byte
 	length uint32
 }
 
 type Builder struct {
-	w io.Writer
+	w  io.Writer
 	vf ValueFunc
 
 	indexBuf proto.Buffer
-	keys []keyLengthPair
+	keys     []keyLengthPair
 	valuePos uint64
 
 	started bool
-	prev []byte
+	prev    []byte
 }
 
 type ValueFunc func(key []byte, p []byte) error
