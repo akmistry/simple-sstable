@@ -78,11 +78,16 @@ func (b *Builder) Build() error {
 		return err
 	}
 
+	var val []byte
 	for _, pair := range b.keys {
 		if pair.length == 0 {
 			continue
 		}
-		val := make([]byte, pair.length)
+		if uint32(cap(val)) < pair.length {
+			val = make([]byte, pair.length)
+		} else {
+			val = val[:pair.length]
+		}
 		err := b.vf(pair.key, val)
 		if err != nil {
 			return err
