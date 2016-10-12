@@ -32,10 +32,8 @@ var testValuesKeyTooLong = map[string]testValuePair{
 func buildTable(t *testing.T, entries map[string]testValuePair) []byte {
 	w := new(bytes.Buffer)
 
-	vf := func(key []byte, p []byte) error {
-		val := entries[string(key)].val
-		copy(p, val)
-		return nil
+	vf := func(key []byte, w io.Writer) (int, error) {
+		return w.Write([]byte(entries[string(key)].val))
 	}
 	b := NewBuilder(w, vf)
 

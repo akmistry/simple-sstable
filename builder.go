@@ -18,7 +18,7 @@ type keyLengthPair struct {
 
 type Builder struct {
 	w  io.Writer
-	vf ValueFunc
+	vf ValueWriter
 
 	indexBuf proto.Buffer
 	keys     []keyLengthPair
@@ -28,9 +28,14 @@ type Builder struct {
 	prev    []byte
 }
 
-type ValueFunc func(key []byte, p []byte) error
+type ValueWriter func(key []byte, w io.Writer) (int, error)
 
-func NewBuilder(w io.Writer, vf ValueFunc) *Builder {
+const (
+	MaxKeyLength = 256
+	MaxValueLength = 1024 * 1024 * 1024  // 1GiB
+)
+
+func NewBuilder(w io.Writer, vf ValueWriter) *Builder {
 	return &Builder{w: w, vf: vf}
 }
 
@@ -41,8 +46,10 @@ func (b *Builder) Add(key []byte, valueLength uint32, meta []byte) {
 		log.Panicf("Key %d is before previous %d", key, b.prev)
 	}
 
-	if len(key) > 256 {
+	if len(key) > MaxKeyLength {
 		log.Panicf("Key length %d > 256", len(key))
+	} else if valueLength > MaxValueLength {
+		log.Panicf("Value length %d > 1GiB", valueLength)
 	}
 
 	keyDup := dup(key)
@@ -78,24 +85,15 @@ func (b *Builder) Build() error {
 		return err
 	}
 
-	var val []byte
 	for _, pair := range b.keys {
 		if pair.length == 0 {
 			continue
 		}
-		if uint32(cap(val)) < pair.length {
-			val = make([]byte, pair.length)
-		} else {
-			val = val[:pair.length]
-		}
-		err := b.vf(pair.key, val)
+		n, err := b.vf(pair.key, b.w)
 		if err != nil {
 			return err
-		}
-
-		_, err = b.w.Write(val)
-		if err != nil {
-			return err
+		} else if n != int(pair.length) {
+			log.Panicf("Unexpected value write length %d, expected %d", n, pair.length)
 		}
 	}
 
