@@ -158,3 +158,17 @@ func (t *Table) LowerKey(key []byte) (k []byte, e []byte, n uint) {
 	}
 	return ie.Key, ie.Extra, uint(ie.Length)
 }
+
+func (t *Table) UpperKey(key []byte) (k []byte, e []byte, n uint) {
+	keyItem := indexEntry{Key: key}
+	var ie *indexEntry
+	iter := func(i btree.Item) bool {
+		ie = i.(*indexEntry)
+		return false
+	}
+	t.index.AscendGreaterOrEqual(&keyItem, iter)
+	if ie == nil {
+		return nil, nil, 0
+	}
+	return ie.Key, ie.Extra, uint(ie.Length)
+}
