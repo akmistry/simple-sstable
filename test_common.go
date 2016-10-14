@@ -22,6 +22,7 @@ var testValues = map[string]testValuePair{
 	"hoo":  {"randomstuff", []byte{1, 2, 3, 4, 5}},
 	// 256 characters.
 	"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh": {"bar6", nil},
+	"i": {"last", nil},
 }
 
 var testValuesKeyTooLong = map[string]testValuePair{
@@ -109,8 +110,19 @@ func checkTable(t *testing.T, table *Table, entries map[string]testValuePair) {
 			t.Log("GetPartial() overflow error", err)
 		}
 
-		// This should always get the key.
+		// These should always get the key.
 		key, e, n := table.LowerKey([]byte(k))
+		if !bytes.Equal([]byte(k), key) {
+			t.Error("Incorrect key", k, key)
+		}
+		if !bytes.Equal(p.extra, e) {
+			t.Error("Incorrect extra", p.extra, e)
+		}
+		if uint(len(p.val)) != n {
+			t.Error("Incorrect value length", len(p.val), n)
+		}
+
+		key, e, n = table.UpperKey([]byte(k))
 		if !bytes.Equal([]byte(k), key) {
 			t.Error("Incorrect key", k, key)
 		}
@@ -126,6 +138,26 @@ func checkTable(t *testing.T, table *Table, entries map[string]testValuePair) {
 func checkPrev(t *testing.T, table *Table, entries map[string]testValuePair, key, expected string) {
 	t.Log("Search:", key, "expecting:", expected)
 	k, e, n := table.LowerKey([]byte(key))
+	if !bytes.Equal([]byte(expected), k) {
+		t.Error("Unexpected key", []byte(expected), k)
+	}
+	if k == nil {
+		return
+	}
+
+	expectedExtra := entries[expected].extra
+	if !bytes.Equal(expectedExtra, e) {
+		t.Error("Incorrect extra", expectedExtra, e)
+	}
+	expectedVal := entries[expected].val
+	if uint(len(expectedVal)) != n {
+		t.Error("Incorrect value length", len(expectedVal), n)
+	}
+}
+
+func checkNext(t *testing.T, table *Table, entries map[string]testValuePair, key, expected string) {
+	t.Log("Search:", key, "expecting:", expected)
+	k, e, n := table.UpperKey([]byte(key))
 	if !bytes.Equal([]byte(expected), k) {
 		t.Error("Unexpected key", []byte(expected), k)
 	}

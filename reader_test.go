@@ -12,9 +12,17 @@ func TestReader(t *testing.T) {
 	}
 	checkTable(t, table, testValues)
 
+	checkPrev(t, table, testValues, "", "")
 	checkPrev(t, table, testValues, "fo", "")
 	checkPrev(t, table, testValues, "foo4", "foo3")
 	checkPrev(t, table, testValues, "go", "foo3")
+	checkPrev(t, table, testValues, "zzzzz", "i")
+
+	checkNext(t, table, testValues, "", "foo")
+	checkNext(t, table, testValues, "fo", "foo")
+	checkNext(t, table, testValues, "foo4", "goo")
+	checkNext(t, table, testValues, "g", "goo")
+	checkNext(t, table, testValues, "iii", "")
 
 	_, _, err = table.Get([]byte("fghjghjk"))
 	if err != ErrNotFound {
