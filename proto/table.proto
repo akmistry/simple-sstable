@@ -20,6 +20,9 @@ message TableHeader {
 
   // Length of the index data.
   uint32 index_length = 3;
+
+  // Number of index entries.
+  uint32 index_entries = 4;
 }
 
 message IndexEntry {

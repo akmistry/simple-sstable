@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/btree"
@@ -29,12 +30,19 @@ type Table struct {
 
 	dataOffset uint64
 	index      *btree.BTree
+
+	indexEntries []indexEntry
 }
 
 var ErrNotFound = errors.New("Not found")
 
+const useBtree = false
+
 func Load(r ReadAtCloser) (*Table, error) {
-	reader := &Table{r: r, index: btree.New(2)}
+	reader := &Table{r: r}
+	if useBtree {
+		reader.index = btree.New(2)
+	}
 	err := reader.readIndex()
 	if err != nil {
 		return nil, err
@@ -44,6 +52,7 @@ func Load(r ReadAtCloser) (*Table, error) {
 
 func (t *Table) Close() error {
 	t.index = nil
+	t.indexEntries = nil
 	return t.r.Close()
 }
 
@@ -77,36 +86,60 @@ func (t *Table) readIndex() error {
 	}
 	t.dataOffset = uint64(indexOffset + header.IndexLength)
 
+	if header.IndexEntries != 0 {
+		t.indexEntries = make([]indexEntry, 0, int(header.IndexEntries))
+	}
 	for len(indexBuf) > 0 {
 		entryLen, consumed := proto.DecodeVarint(indexBuf)
 		if consumed == 0 {
 			return fmt.Errorf("Invalid index encoding")
 		}
+
 		entry := new(pb.IndexEntry)
 		err = proto.Unmarshal(indexBuf[consumed:consumed+int(entryLen)], entry)
 		if err != nil {
 			return err
 		}
 
-		if existing := t.index.ReplaceOrInsert((*indexEntry)(entry)); existing != nil {
-			return fmt.Errorf("Duplicate item in index: %v", existing)
+		if useBtree {
+			if existing := t.index.ReplaceOrInsert((*indexEntry)(entry)); existing != nil {
+				return fmt.Errorf("Duplicate item in index: %v", existing)
+			}
+		} else {
+			t.indexEntries = append(t.indexEntries, indexEntry(*entry))
 		}
 
 		indexBuf = indexBuf[consumed+int(entryLen):]
+	}
+
+	// Check t.indexEntries is sorted.
+	for i := 0; i < len(t.indexEntries) - 1; i++ {
+		if bytes.Compare(t.indexEntries[i].Key, t.indexEntries[i+1].Key) != -1 {
+			return fmt.Errorf("Unexpected sort order, %v >= %v", t.indexEntries[i].Key, t.indexEntries[i+1].Key)
+		}
 	}
 
 	return nil
 }
 
 func (t *Table) Has(key []byte) bool {
-	keyItem := indexEntry{Key: key}
-	return t.index.Has(&keyItem)
+	return t.getEntry(key) != nil
 }
 
 func (t *Table) getEntry(key []byte) *indexEntry {
-	keyItem := indexEntry{Key: key}
-	if ie, ok := t.index.Get(&keyItem).(*indexEntry); ok {
-		return ie
+	if useBtree {
+		keyItem := indexEntry{Key: key}
+		if ie, ok := t.index.Get(&keyItem).(*indexEntry); ok {
+			return ie
+		}
+	} else {
+		i := sort.Search(len(t.indexEntries), func(i int) bool {
+			cmp := bytes.Compare(key, t.indexEntries[i].Key)
+			return cmp <= 0
+		})
+		if i < len(t.indexEntries) && bytes.Compare(key, t.indexEntries[i].Key) == 0 {
+			return &t.indexEntries[i]
+		}
 	}
 	return nil
 }
@@ -152,46 +185,86 @@ func (t *Table) GetInfo(key []byte) (length uint, extra []byte, e error) {
 }
 
 func (t *Table) Keys() (keys [][]byte) {
-	if t.index.Len() == 0 {
-		return nil
-	}
+	if useBtree {
+		if t.index.Len() == 0 {
+			return
+		}
 
-	keys = make([][]byte, 0, t.index.Len())
-	iter := func(i btree.Item) bool {
-		ie := i.(*indexEntry)
-		keys = append(keys, ie.Key)
-		return true
+		keys = make([][]byte, 0, t.index.Len())
+		iter := func(i btree.Item) bool {
+			ie := i.(*indexEntry)
+			keys = append(keys, ie.Key)
+			return true
+		}
+		t.index.Ascend(iter)
+	} else {
+		if len(t.indexEntries) == 0 {
+			return
+		}
+
+		keys = make([][]byte, 0, len(t.indexEntries))
+		for i, _ := range t.indexEntries {
+			keys = append(keys, t.indexEntries[i].Key)
+		}
 	}
-	t.index.Ascend(iter)
-	return keys
+	return
 }
 
 // Gets the key (and extra and value length) in the table that is less than or
 // equal to the given key. Will return nil if no such key exists.
 func (t *Table) LowerKey(key []byte) (k []byte, e []byte, n uint) {
-	keyItem := indexEntry{Key: key}
-	var ie *indexEntry
-	iter := func(i btree.Item) bool {
-		ie = i.(*indexEntry)
-		return false
+	if useBtree {
+		keyItem := indexEntry{Key: key}
+		var ie *indexEntry
+		iter := func(i btree.Item) bool {
+			ie = i.(*indexEntry)
+			return false
+		}
+		t.index.DescendLessOrEqual(&keyItem, iter)
+		if ie == nil {
+			return nil, nil, 0
+		}
+		return ie.Key, ie.Extra, uint(ie.Length)
+	} else {
+		i := sort.Search(len(t.indexEntries), func(i int) bool {
+			cmp := bytes.Compare(key, t.indexEntries[i].Key)
+			return cmp <= 0
+		})
+		if i == len(t.indexEntries) {
+			i--
+		} else if bytes.Compare(key, t.indexEntries[i].Key) != 0 {
+			i--
+			if i < 0 {
+				return nil, nil, 0
+			}
+		}
+		return t.indexEntries[i].Key, t.indexEntries[i].Extra, uint(t.indexEntries[i].Length)
 	}
-	t.index.DescendLessOrEqual(&keyItem, iter)
-	if ie == nil {
-		return nil, nil, 0
-	}
-	return ie.Key, ie.Extra, uint(ie.Length)
+	return nil, nil, 0
 }
 
 func (t *Table) UpperKey(key []byte) (k []byte, e []byte, n uint) {
-	keyItem := indexEntry{Key: key}
-	var ie *indexEntry
-	iter := func(i btree.Item) bool {
-		ie = i.(*indexEntry)
-		return false
+	if useBtree {
+		keyItem := indexEntry{Key: key}
+		var ie *indexEntry
+		iter := func(i btree.Item) bool {
+			ie = i.(*indexEntry)
+			return false
+		}
+		t.index.AscendGreaterOrEqual(&keyItem, iter)
+		if ie == nil {
+			return nil, nil, 0
+		}
+		return ie.Key, ie.Extra, uint(ie.Length)
+	} else {
+		i := sort.Search(len(t.indexEntries), func(i int) bool {
+			cmp := bytes.Compare(key, t.indexEntries[i].Key)
+			return cmp <= 0
+		})
+		if i >= len(t.indexEntries) {
+			return nil, nil, 0
+		}
+		return t.indexEntries[i].Key, t.indexEntries[i].Extra, uint(t.indexEntries[i].Length)
 	}
-	t.index.AscendGreaterOrEqual(&keyItem, iter)
-	if ie == nil {
-		return nil, nil, 0
-	}
-	return ie.Key, ie.Extra, uint(ie.Length)
+	return nil, nil, 0
 }

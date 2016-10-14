@@ -71,6 +71,7 @@ func (b *Builder) Build() error {
 	var header pb.TableHeader
 	header.Version = 1
 	header.IndexLength = uint32(len(b.indexBuf.Bytes()))
+	header.IndexEntries = uint32(len(b.keys))
 	// TODO: Implement index compression.
 
 	headerBuf, err := proto.Marshal(&header)
