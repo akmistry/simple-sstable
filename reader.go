@@ -143,6 +143,29 @@ func (t *Table) GetPartial(key []byte, off uint, p []byte) error {
 	return err
 }
 
+func (t *Table) GetInfo(key []byte) (length uint, extra []byte, e error) {
+	ie := t.getEntry(key)
+	if ie == nil {
+		return 0, nil, ErrNotFound
+	}
+	return uint(ie.Length), ie.Extra, nil
+}
+
+func (t *Table) Keys() (keys [][]byte) {
+	if t.index.Len() == 0 {
+		return nil
+	}
+
+	keys = make([][]byte, 0, t.index.Len())
+	iter := func(i btree.Item) bool {
+		ie := i.(*indexEntry)
+		keys = append(keys, ie.Key)
+		return true
+	}
+	t.index.Ascend(iter)
+	return keys
+}
+
 // Gets the key (and extra and value length) in the table that is less than or
 // equal to the given key. Will return nil if no such key exists.
 func (t *Table) LowerKey(key []byte) (k []byte, e []byte, n uint) {
