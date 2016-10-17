@@ -79,12 +79,16 @@ func (t *Table) readIndex() error {
 	}
 
 	indexOffset := 4 + hs
+	t.dataOffset = uint64(indexOffset + header.IndexLength)
+	if header.IndexLength == 0 {
+		// No index, table is empty, done loading.
+		return nil
+	}
 	indexBuf := make([]byte, header.IndexLength)
 	_, err = t.r.ReadAt(indexBuf, int64(indexOffset))
 	if err != nil {
 		return err
 	}
-	t.dataOffset = uint64(indexOffset + header.IndexLength)
 
 	if header.IndexEntries != 0 {
 		t.indexEntries = make([]indexEntry, 0, int(header.IndexEntries))
@@ -234,9 +238,9 @@ func (t *Table) LowerKey(key []byte) (k []byte, e []byte, n uint) {
 			i--
 		} else if bytes.Compare(key, t.indexEntries[i].Key) != 0 {
 			i--
-			if i < 0 {
-				return nil, nil, 0
-			}
+		}
+		if i < 0 {
+			return nil, nil, 0
 		}
 		return t.indexEntries[i].Key, t.indexEntries[i].Extra, uint(t.indexEntries[i].Length)
 	}

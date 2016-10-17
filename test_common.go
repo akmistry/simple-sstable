@@ -30,6 +30,8 @@ var testValuesKeyTooLong = map[string]testValuePair{
 	"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {"bar1", nil},
 }
 
+var emptyTable = map[string]testValuePair{}
+
 func buildTable(t *testing.T, entries map[string]testValuePair) []byte {
 	w := new(bytes.Buffer)
 

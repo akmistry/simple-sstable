@@ -8,7 +8,7 @@ import (
 func TestReader(t *testing.T) {
 	table, err := buildReader(t, buildTable(t, testValues))
 	if err != nil {
-		t.Error("Error building table", err)
+		t.Fatal("Error building table", err)
 	}
 	checkTable(t, table, testValues)
 
@@ -33,7 +33,7 @@ func TestReader(t *testing.T) {
 func TestReader_Keys(t *testing.T) {
         table, err := buildReader(t, buildTable(t, testValues))
         if err != nil {
-                t.Error("Error building table", err)
+                t.Fatal("Error building table", err)
         }
 
 	expectedKeys := make([]string, 0, len(testValues))
@@ -53,5 +53,22 @@ func TestReader_Keys(t *testing.T) {
 			t.Error("Incorrect key, expected", expectedKeys[i],
 				"actual", string(k))
 		}
+	}
+}
+
+func TestReader_EmptyTable(t *testing.T) {
+	table, err := buildReader(t, buildTable(t, emptyTable))
+        if err != nil {
+                t.Fatal("Error building table", err)
+        }
+
+	k, e, _ := table.LowerKey([]byte("foo"))
+	if k != nil || e != nil {
+		t.Error("Unexpected key or extra", k, e)
+	}
+
+	k, e, _ = table.UpperKey([]byte("foo"))
+	if k != nil || e != nil {
+		t.Error("Unexpected key or extra", k, e)
 	}
 }
