@@ -28,13 +28,20 @@ func TestReader(t *testing.T) {
 	if err != ErrNotFound {
 		t.Error("Unexpected error getting non-existent key", err)
 	}
+
+	if table.NumKeys() != 9 {
+		t.Error("Incorrect number of keys", table.NumKeys())
+	}
+	if table.DataSize() != 39 {
+		t.Error("Incorrect data size", table.DataSize())
+	}
 }
 
 func TestReader_Keys(t *testing.T) {
-        table, err := buildReader(t, buildTable(t, testValues))
-        if err != nil {
-                t.Fatal("Error building table", err)
-        }
+	table, err := buildReader(t, buildTable(t, testValues))
+	if err != nil {
+		t.Fatal("Error building table", err)
+	}
 
 	expectedKeys := make([]string, 0, len(testValues))
 	for k, _ := range testValues {
@@ -58,9 +65,9 @@ func TestReader_Keys(t *testing.T) {
 
 func TestReader_EmptyTable(t *testing.T) {
 	table, err := buildReader(t, buildTable(t, emptyTable))
-        if err != nil {
-                t.Fatal("Error building table", err)
-        }
+	if err != nil {
+		t.Fatal("Error building table", err)
+	}
 
 	k, e, _ := table.LowerKey([]byte("foo"))
 	if k != nil || e != nil {

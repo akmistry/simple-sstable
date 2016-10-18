@@ -31,8 +31,8 @@ type Builder struct {
 type ValueWriter func(key []byte, w io.Writer) (int, error)
 
 const (
-	MaxKeyLength = 256
-	MaxValueLength = 1024 * 1024 * 1024  // 1GiB
+	MaxKeyLength   = 256
+	MaxValueLength = 1024 * 1024 * 1024 // 1GiB
 )
 
 func NewBuilder(w io.Writer, vf ValueWriter) *Builder {

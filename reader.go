@@ -29,6 +29,7 @@ type Table struct {
 	r ReadAtCloser
 
 	dataOffset uint64
+	dataSize   uint64
 	index      *btree.BTree
 
 	indexEntries []indexEntry
@@ -48,6 +49,17 @@ func Load(r ReadAtCloser) (*Table, error) {
 		return nil, err
 	}
 	return reader, nil
+}
+
+func (t *Table) NumKeys() int {
+	if useBtree {
+		return t.index.Len()
+	}
+	return len(t.indexEntries)
+}
+
+func (t *Table) DataSize() uint64 {
+	return t.dataSize
 }
 
 func (t *Table) Close() error {
@@ -113,11 +125,12 @@ func (t *Table) readIndex() error {
 			t.indexEntries = append(t.indexEntries, indexEntry(*entry))
 		}
 
+		t.dataSize += uint64(entry.Length)
 		indexBuf = indexBuf[consumed+int(entryLen):]
 	}
 
 	// Check t.indexEntries is sorted.
-	for i := 0; i < len(t.indexEntries) - 1; i++ {
+	for i := 0; i < len(t.indexEntries)-1; i++ {
 		if bytes.Compare(t.indexEntries[i].Key, t.indexEntries[i+1].Key) != -1 {
 			return fmt.Errorf("Unexpected sort order, %v >= %v", t.indexEntries[i].Key, t.indexEntries[i+1].Key)
 		}
