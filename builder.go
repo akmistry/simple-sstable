@@ -8,6 +8,8 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
+	iou "github.com/akmistry/go-util/io"
+
 	pb "github.com/akmistry/simple-sstable/proto"
 )
 
@@ -81,7 +83,7 @@ func (b *Builder) Build() error {
 
 	var headerSize [4]byte
 	binary.LittleEndian.PutUint32(headerSize[:], uint32(len(headerBuf)))
-	_, err = writeMany(b.w, headerSize[:], headerBuf, b.indexBuf.Bytes())
+	_, err = iou.WriteMany(b.w, headerSize[:], headerBuf, b.indexBuf.Bytes())
 	if err != nil {
 		return err
 	}

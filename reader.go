@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"log"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/btree"
@@ -48,6 +49,7 @@ func Load(r ReadAtCloser) (*Table, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Println("Loaded table with num keys:", reader.NumKeys())
 	return reader, nil
 }
 
