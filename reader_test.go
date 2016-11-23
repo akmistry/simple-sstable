@@ -63,6 +63,36 @@ func TestReader_Keys(t *testing.T) {
 	}
 }
 
+func TestReader_KeyIter(t *testing.T) {
+	table, err := buildReader(t, buildTable(t, testValues))
+	if err != nil {
+		t.Fatal("Error building table", err)
+	}
+
+	expectedKeys := make([]string, 0, len(testValues))
+	for k, _ := range testValues {
+		expectedKeys = append(expectedKeys, k)
+	}
+	sort.Strings(expectedKeys)
+
+	iter := table.KeyIter()
+	last := len(expectedKeys) - 1
+	for i := 0; i < len(expectedKeys); i++ {
+		k := iter.Value()
+		if string(k) != expectedKeys[i] {
+			t.Error("Incorrect key, expected", expectedKeys[i],
+				"actual", string(k))
+		}
+		valid := iter.Next()
+		if valid != (i != last) {
+			t.Error("Unexpected return value from Next(), expected", i != last, "actual", valid)
+		}
+	}
+	if iter.Value() != nil {
+		t.Error("Expected nil iterator value, actual", iter.Value())
+	}
+}
+
 func TestReader_EmptyTable(t *testing.T) {
 	table, err := buildReader(t, buildTable(t, emptyTable))
 	if err != nil {
