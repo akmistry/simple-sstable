@@ -14,15 +14,10 @@ import (
 	pb "github.com/akmistry/simple-sstable/proto"
 )
 
-type ReadAtCloser interface {
-	io.ReaderAt
-	io.Closer
-}
-
 type indexEntry pb.IndexEntry
 
 type Table struct {
-	r ReadAtCloser
+	r io.ReaderAt
 
 	dataOffset uint64
 	dataSize   uint64
@@ -32,7 +27,7 @@ type Table struct {
 
 var ErrNotFound = errors.New("Not found")
 
-func Load(r ReadAtCloser) (*Table, error) {
+func Load(r io.ReaderAt) (*Table, error) {
 	reader := &Table{r: r}
 	err := reader.readIndex()
 	if err != nil {
@@ -52,7 +47,7 @@ func (t *Table) DataSize() uint64 {
 
 func (t *Table) Close() error {
 	t.indexEntries = nil
-	return t.r.Close()
+	return nil
 }
 
 func (t *Table) readIndex() error {

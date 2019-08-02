@@ -58,25 +58,9 @@ func buildTable(t *testing.T, entries map[string]testValuePair) []byte {
 	return w.Bytes()
 }
 
-type wrapper struct {
-	r io.ReaderAt
-}
-
-func (w *wrapper) ReadAt(b []byte, off int64) (int, error) {
-	return w.r.ReadAt(b, off)
-}
-
-func (w *wrapper) Close() error {
-	return nil
-}
-
-func wrapReaderAt(r io.ReaderAt) ReadAtCloser {
-	return &wrapper{r}
-}
-
 func buildReader(t *testing.T, buf []byte) (*Table, error) {
 	r := bytes.NewReader(buf)
-	return Load(wrapReaderAt(r))
+	return Load(r)
 }
 
 func checkTable(t *testing.T, table *Table, entries map[string]testValuePair) {
