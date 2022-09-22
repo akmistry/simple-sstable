@@ -16,8 +16,26 @@ import (
 
 type indexEntry pb.IndexEntry
 
+type TableStats struct {
+	// Number of keys in the table
+	NumKeys int
+
+	// Total size of keys (bytes)
+	KeysSize int
+
+	// Total size of values (bytes)
+	ValuesSize int64
+
+	// Size of header (bytes)
+	HeaderSize int
+
+	// Size of index (bytes)
+	IndexSize int
+}
+
 type Table struct {
-	r io.ReaderAt
+	r     io.ReaderAt
+	stats TableStats
 
 	dataOffset uint64
 	dataSize   uint64
@@ -38,11 +56,15 @@ func Load(r io.ReaderAt) (*Table, error) {
 }
 
 func (t *Table) NumKeys() int {
-	return len(t.indexEntries)
+	return t.stats.NumKeys
 }
 
 func (t *Table) DataSize() uint64 {
 	return t.dataSize
+}
+
+func (t *Table) Stats() TableStats {
+	return t.stats
 }
 
 func (t *Table) Close() error {
@@ -57,6 +79,7 @@ func (t *Table) readIndex() error {
 		return err
 	}
 	hs := binary.LittleEndian.Uint32(headerSize[:])
+	t.stats.HeaderSize = int(hs)
 	headerBuf := make([]byte, hs)
 	_, err = t.r.ReadAt(headerBuf, 4)
 	if err != nil {
@@ -103,6 +126,11 @@ func (t *Table) readIndex() error {
 
 		t.dataSize += uint64(entry.Length)
 		indexBuf = indexBuf[consumed+int(entryLen):]
+
+		t.stats.NumKeys++
+		t.stats.KeysSize += len(entry.Key)
+		t.stats.ValuesSize += int64(entry.Length)
+		t.stats.IndexSize += consumed + int(entryLen)
 	}
 
 	// Check t.indexEntries is sorted.
