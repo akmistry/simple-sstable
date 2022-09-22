@@ -191,6 +191,11 @@ func (r *ValueReader) ReadAt(p []byte, off int64) (int, error) {
 		readLen = int(int64(r.length) - off)
 	}
 	n, err := r.t.r.ReadAt(p[:readLen], r.offset+off)
+	if err == io.EOF && n < readLen {
+		// Read was shorter than the expected value length, suggesting the file
+		// has been truncated. This is unexpected.
+		err = io.ErrUnexpectedEOF
+	}
 	if err != nil {
 		return n, err
 	}

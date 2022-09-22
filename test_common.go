@@ -22,7 +22,7 @@ var testValues = map[string]testValuePair{
 	"hoo":  {"randomstuff", []byte{1, 2, 3, 4, 5}},
 	// 256 characters.
 	"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh": {"bar6", nil},
-	"i": {"last", nil},
+	"zzz": {"last", nil},
 }
 
 var testValuesKeyTooLong = map[string]testValuePair{
