@@ -158,35 +158,92 @@ func (t *Table) getEntry(key []byte) *indexEntry {
 	return nil
 }
 
-func (t *Table) Get(key []byte) (value []byte, extra []byte, e error) {
+type ValueReader struct {
+	t *Table
+
+	extra []byte
+
+	offset int64
+	length uint32
+}
+
+func (r *ValueReader) Extra() []byte {
+	return r.extra
+}
+
+// Returns int64 to match various other Size() methods (i.e. FileInfo.Size())
+func (r *ValueReader) Size() int64 {
+	return int64(r.length)
+}
+
+func (r *ValueReader) ReadAt(p []byte, off int64) (int, error) {
+	if off < 0 {
+		panic("off < 0")
+	}
+	if off >= int64(r.length) {
+		return 0, io.EOF
+	} else if len(p) == 0 {
+		return 0, nil
+	}
+
+	readLen := len(p)
+	if off+int64(readLen) > int64(r.length) {
+		readLen = int(int64(r.length) - off)
+	}
+	n, err := r.t.r.ReadAt(p[:readLen], r.offset+off)
+	if err != nil {
+		return n, err
+	}
+	if n < len(p) {
+		err = io.EOF
+	}
+	return n, err
+}
+
+func (t *Table) GetReader(key []byte) (*ValueReader, error) {
 	ie := t.getEntry(key)
 	if ie == nil {
-		return nil, nil, ErrNotFound
+		return nil, ErrNotFound
 	}
-	if ie.Length == 0 {
-		return nil, ie.Extra, nil
+
+	r := &ValueReader{
+		t:      t,
+		extra:  ie.Extra,
+		offset: int64(t.dataOffset + ie.Offset),
+		length: uint32(ie.Length),
 	}
-	value = make([]byte, int(ie.Length))
-	_, err := t.r.ReadAt(value, int64(t.dataOffset+ie.Offset))
+	return r, nil
+}
+
+func (t *Table) Get(key []byte) (value []byte, extra []byte, e error) {
+	r, err := t.GetReader(key)
 	if err != nil {
 		return nil, nil, err
 	}
-	return value, ie.Extra, nil
+
+	value = make([]byte, int(r.Size()))
+	n, err := r.ReadAt(value, 0)
+	if err == io.EOF && n == len(value) {
+		// All data was read, so not an error.
+	} else if err != nil {
+		return nil, nil, err
+	}
+	return value, r.Extra(), nil
 }
 
+// Deprecated: Use GetReader instead.
 func (t *Table) GetPartial(key []byte, off uint, p []byte) error {
-	ie := t.getEntry(key)
-	if ie == nil {
-		return ErrNotFound
+	r, err := t.GetReader(key)
+	if err != nil {
+		return err
 	}
-	if uint32(off+uint(len(p))) > ie.Length {
-		return io.ErrUnexpectedEOF
+
+	n, err := r.ReadAt(p, int64(off))
+	if err == io.EOF && len(p) > 0 && n == len(p) {
+		// Normalise error so that EOF is only returned if n < len(p). ReadAt()
+		// allows for io.EOF to be returned even when all bytes have been read.
+		err = nil
 	}
-	if ie.Length == 0 || len(p) == 0 {
-		// The user really shouldn't be doing this.
-		return nil
-	}
-	_, err := t.r.ReadAt(p, int64(t.dataOffset+ie.Offset+uint64(off)))
 	return err
 }
 

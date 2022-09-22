@@ -83,7 +83,7 @@ func checkTable(t *testing.T, table *Table, entries map[string]testValuePair) {
 
 		v = make([]byte, len(p.val))
 		err = table.GetPartial([]byte(k), 0, v)
-		if err != nil {
+		if err != nil && len(p.val) > 0 {
 			t.Error("Unexpected error in GetPartial()", err)
 		}
 		if !bytes.Equal([]byte(p.val), v) {
