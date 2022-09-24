@@ -284,11 +284,26 @@ func (i *Iter) Value() []byte {
 	return i.t.indexEntries[i.i].Key
 }
 
+func (i *Iter) Key() []byte {
+	if i.i >= len(i.t.indexEntries) {
+		return nil
+	}
+	return i.t.indexEntries[i.i].Key
+}
+
+func (i *Iter) ValueSize() int64 {
+	if i.i >= len(i.t.indexEntries) {
+		return 0
+	}
+	return int64(i.t.indexEntries[i.i].Length)
+}
+
 func (i *Iter) Next() bool {
 	i.i++
 	return i.i < len(i.t.indexEntries)
 }
 
+// Deprecated: Less bad interface TBD
 func (t *Table) KeyIter() *Iter {
 	return &Iter{t: t}
 }
