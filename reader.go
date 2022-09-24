@@ -317,13 +317,8 @@ func (t *Table) KeyIter() *Iter {
 func (t *Table) LowerKey(key []byte) (k []byte, e []byte, n uint) {
 	i := sort.Search(len(t.indexEntries), func(i int) bool {
 		cmp := bytes.Compare(key, t.indexEntries[i].Key)
-		return cmp <= 0
-	})
-	if i == len(t.indexEntries) {
-		i--
-	} else if bytes.Compare(key, t.indexEntries[i].Key) != 0 {
-		i--
-	}
+		return cmp < 0
+	}) - 1
 	if i < 0 {
 		return nil, nil, 0
 	}
