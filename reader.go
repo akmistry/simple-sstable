@@ -38,7 +38,6 @@ type Table struct {
 	stats TableStats
 
 	dataOffset uint64
-	dataSize   uint64
 
 	indexEntries []indexEntry
 }
@@ -60,7 +59,7 @@ func (t *Table) NumKeys() int {
 }
 
 func (t *Table) DataSize() uint64 {
-	return t.dataSize
+	return uint64(t.stats.ValuesSize)
 }
 
 func (t *Table) Stats() TableStats {
@@ -108,29 +107,34 @@ func (t *Table) readIndex() error {
 	}
 
 	if header.IndexEntries != 0 {
-		t.indexEntries = make([]indexEntry, 0, int(header.IndexEntries))
+		t.indexEntries = make([]indexEntry, int(header.IndexEntries))
 	}
-	for len(indexBuf) > 0 {
-		entryLen, consumed := proto.DecodeVarint(indexBuf)
-		if consumed == 0 {
-			return fmt.Errorf("Invalid index encoding")
+	offset := 0
+	for i := range t.indexEntries {
+		if offset >= len(indexBuf) {
+			return errors.New("Invalid index encoding")
 		}
 
-		entry := new(pb.IndexEntry)
-		err = proto.Unmarshal(indexBuf[consumed:consumed+int(entryLen)], entry)
+		entryLen, consumed := proto.DecodeVarint(indexBuf[offset:])
+		if consumed == 0 {
+			return errors.New("Invalid index encoding")
+		}
+
+		entryOffset := offset + consumed
+		if entryOffset+int(entryLen) > len(indexBuf) {
+			return errors.New("Invalid index encoding")
+		}
+		entry := (*pb.IndexEntry)(&t.indexEntries[i])
+		err = proto.Unmarshal(indexBuf[entryOffset:entryOffset+int(entryLen)], entry)
 		if err != nil {
 			return err
 		}
-
-		t.indexEntries = append(t.indexEntries, indexEntry(*entry))
-
-		t.dataSize += uint64(entry.Length)
-		indexBuf = indexBuf[consumed+int(entryLen):]
 
 		t.stats.NumKeys++
 		t.stats.KeysSize += len(entry.Key)
 		t.stats.ValuesSize += int64(entry.Length)
 		t.stats.IndexSize += consumed + int(entryLen)
+		offset += consumed + int(entryLen)
 	}
 
 	// Check t.indexEntries is sorted.
