@@ -105,6 +105,8 @@ func (t *Table) readIndex() error {
 	if err != nil {
 		return err
 	}
+	t.stats.IndexSize = int(header.IndexLength)
+	t.stats.NumKeys = int(header.IndexEntries)
 
 	if header.IndexEntries != 0 {
 		t.indexEntries = make([]indexEntry, int(header.IndexEntries))
@@ -130,10 +132,8 @@ func (t *Table) readIndex() error {
 			return err
 		}
 
-		t.stats.NumKeys++
 		t.stats.KeysSize += len(entry.Key)
 		t.stats.ValuesSize += int64(entry.Length)
-		t.stats.IndexSize += consumed + int(entryLen)
 		offset += consumed + int(entryLen)
 	}
 
